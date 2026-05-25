@@ -1,54 +1,36 @@
-# 🛡️ EasyTier-HA-Updater for OpenWrt
+# EasyTier OpenWrt HA Updater
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-OpenWrt%20%7C%20ImmortalWrt-success)](#)
-[![Architecture](https://img.shields.io/badge/Architecture-x86_64%20%7C%20ARM-orange)](#)
+EasyTier 远程自动更新与部署脚本，专为 OpenWrt / ImmortalWrt 环境设计。
 
-专为 OpenWrt / ImmortalWrt 打造的 [EasyTier](https://github.com/EasyTier/EasyTier) 高可用（HA）自动更新与部署脚本。
+解决在通过 EasyTier 隧道进行远程 SSH 运维时，因更新过程中核心进程被终止而导致连接断开、更新任务中断的问题。脚本通过内核信号接管与后台静默执行，确保更新流程完整落地并自动拉起服务。
 
-在 OpenWrt 上更新底层虚拟局域网（VPN/SD-WAN）插件时，传统的更新脚本往往面临一个致命悖论：**“更新程序本身会导致网络断开，而网络断开会瞬间杀死正在执行更新的 SSH 进程”**，最终导致旧版已卸载、新版未装完的“半砖”死锁。
+## 特性
 
-本脚本专为打破这一灾难场景而生。它引入了工业级的**系统信号免疫**、**多链路容灾**与**物理级防投毒校验**，确保每一次底层网络重构都能像外科手术般精准、安全地在后台完成。
-
-## ✨ 核心特性 (Features)
-
-* 🛡️ **进程免疫 (Signal Trapping)**
-  * 在底层覆写阶段，脚本将强制接管 Linux 信号（忽略 `SIGHUP`, `SIGINT`, `SIGPIPE`）。
-  * **即使你通过 EasyTier 隧道连接 SSH，更新导致隧道断裂、终端崩溃，脚本依然会在内核后台强行跑完全程并拉起新版进程。**
-* 🌐 **智能路由与链路降级 (Smart Fallback)**
-  * 默认优先极速直连 GitHub 官方源获取纯净数据。
-  * 一旦遭遇超时或 GFW 阻断，瞬间无缝降级至预置的三大国内加速节点（`ghproxy.net`, `gh-proxy.com`, `mirror.ghproxy.com`）阵列循环。
-* 📦 **包管理器自适应 (Auto-Adaptation)**
-  * 抛弃对系统版本号的死板判断，直接在内核层嗅探。完美兼容传统的 `opkg` 体系（ `.ipk`）与 24.10+ 现代化的 Alpine `apk` 体系（`.apk`）。
-* 🔍 **物理级断言校验 (Anti-Pollution)**
-  * 针对 OpenWrt 阉割版 BusyBox 的痛点，摒弃脆弱的参数校验。采用**物理强制解压**作为真理探针，彻底杜绝代理服务器返回 `502 HTML` 脏数据导致系统崩溃的隐患。
-* 🛠️ **基建环境自愈 (Self-Healing)**
-  * 执行前自动审计宿主机环境，若缺失 `curl` 或 SSL 根证书链，将接管包管理器自动静默补齐依赖。
+* **进程守护**：捕获并忽略 `SIGHUP`、`SIGINT`、`SIGPIPE` 信号。即使 SSH 会话因网络断开而崩溃，脚本依然在后台运行直至完成覆写。
+* **多链路回退**：首选直连 GitHub 官方源获取数据，超时自动切换至镜像节点（ghproxy.net、gh-proxy.com、mirror.ghproxy.com）循环轮询。
+* **架构自适应**：自动识别设备硬件架构，兼容 OpenWrt 传统 `opkg` 体系（.ipk）与 24.10+ 现代 `apk` 体系（.apk）。
+* **完整性校验**：采用物理级解压作为合法性断言，彻底防止因代理节点返回错误网页而引入脏数据。
+* **环境自愈**：自动审计宿主机组件，缺失 `curl` 或 SSL 根证书链时自动执行静默补齐。
 
 ---
 
-## 🚀 极速使用 (Quick Start)
+## 快速使用
 
-通过 SSH 登录你的 OpenWrt / ImmortalWrt 路由器终端，直接复制并运行以下一键命令：
+在 OpenWrt 终端执行以下一键命令：
 
 ```bash
-sh -c "$(curl -sSL [https://raw.githubusercontent.com/你的GitHub用户名/你的仓库名/main/et_update_ha.sh](https://raw.githubusercontent.com/ciskonc/easytier-openwrt-updater/main/et_update_ha.sh))"
+sh -c "$(curl -sSL [https://raw.githubusercontent.com/ciskonc/easytier-openwrt-updater/main/et_update_ha.sh](https://raw.githubusercontent.com/ciskonc/easytier-openwrt-updater/main/et_update_ha.sh))"
 ```
-*(注意：请将上方的 URL 替换为你实际 GitHub 仓库中该脚本的 raw 链接)*
 
-### 交互说明
-运行后，脚本会弹出唯一一次交互询问：
-```text
-[?] 是否优先尝试直连 GitHub (默认优先, 超时10秒)? [Y/n]:
-```
-* **输入 `Y` 或直接回车**：适合海外节点或已配置透明代理的路由器，优先享受直连高带宽。
-* **输入 `n` 或 `N`**：适合纯国内无代理的路由器，脚本将彻底跳过直连探针，全程使用国内加速网络。
+### 交互模式说明
+* **回车或输入 `Y`**：直连优先策略（10秒容灾超时），适合海外节点或拥有透明代理的环境。
+* **输入 `n` 或 `N`**：直接启用镜像加速阵列，跳过直连探测。
 
 ---
 
-## 📝 脚本源码 (Source Code)
+## 脚本源码
 
-如果不习惯执行远程脚本，可手动创建文件：在终端执行 `vi /tmp/update.sh`，粘贴以下代码，执行 `sh /tmp/update.sh`。
+可手动创建文件执行：`vi /tmp/update.sh`，粘贴以下代码，随后执行 `sh /tmp/update.sh`。
 
 <details>
 <summary><b>点击展开查看完整脚本源码</b></summary>
@@ -192,9 +174,6 @@ rm -rf /tmp/et.zip /tmp/et_pkg /tmp/et_update_ha.sh
 
 ## 🔎 常见问题 (FAQ)
 
-**Q: 为什么更新过程中我的 SSH 终端突然卡住然后断开了？** A: 预期行为。你当前正通过 EasyTier 隧道连接该路由器，脚本在覆盖旧文件时必须杀死正在运行的进程，导致网络隧道物理断裂。无需惊慌，脚本已注入 `trap '' HUP` 守护，将在后台默默完成新版本的覆写并自动重连隧道。等待 1 分钟即可重新登录。
+**Q: 为什么更新过程中我的 SSH 终端突然卡住然后断开了？** A: 正常现象。脚本在覆盖文件时必须终止并重启旧进程，导致虚拟隧道网络瞬间断开。因脚本已注入 `trap '' HUP` 挂断免疫机制，它会在后台默默完成新版本的安装并自愈重启服务。等待 1 分钟后重新连接即可。
 
-**Q: 我断线重连后，如何验证更新状态？** A: 连接后，在终端执行 `cat /tmp/et_install.log`，即可查看黑盒状态下的脱机后台日志记录。
-
-## 🤝 致谢
-感谢 [EasyTier](https://github.com/EasyTier/EasyTier) 团队带来的优秀虚拟局域网组网工具，以及 [luci-app-easytier](https://github.com/EasyTier/luci-app-easytier) 项目。
+**Q: 断线重连后，如何验证更新状态？** A: 执行 `cat /tmp/et_install.log`，即可查看脱机黑盒状态下的后台日志输出。
