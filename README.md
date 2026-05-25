@@ -1,4 +1,4 @@
-# EasyTier OpenWrt HA Updater
+# OpenWrt EasyTier Updater
 
 EasyTier 远程自动更新与部署脚本，专为 OpenWrt / ImmortalWrt 环境设计。
 
