@@ -8,7 +8,7 @@ echo "======================================================"
 echo "[INFO] 系统架构: ${DISTRIB_ARCH}"
 
 # 0. 选择下载方式
-printf "[?] 是否优先直连 GitHub (默认 Y, 超时10秒)? [Y/n]: "
+printf "[?] 是否优先直连 GitHub (默认 Y, 超时5秒)? [Y/n]: "
 read -r USE_DIRECT < /dev/tty
 USE_DIRECT=${USE_DIRECT:-Y}
 
@@ -55,7 +55,7 @@ MIRRORS="https://ghfast.top https://gh-proxy.com https://ghproxy.cc"
 
 # 请求 API
 fetch_api() {
-    curl -sSL -m 15 "$1" 2>/dev/null
+    curl -sSL -m 5 "$1" 2>/dev/null
 }
 
 # 从 API 响应中提取下载 URL
